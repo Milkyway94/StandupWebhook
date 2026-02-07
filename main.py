@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Telegram Bot Webhook Listener
-Nhận web_app_data và post vào topic
+Telegram Bot Webhook Listener - Flask version (faster, async-friendly)
 """
 
 import json
 import requests
-import os
-from http.server import HTTPServer, BaseHTTPRequestHandler
+import threading
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 from datetime import datetime
 
 BOT_TOKEN = "8305092853:AAFJEMce0TPjU2NTFcmLqbnlGJaXC-ZeU1Q"
@@ -15,108 +15,19 @@ CHAT_ID = "-1003773551774"
 THREAD_ID = 7
 API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
-class WebhookHandler(BaseHTTPRequestHandler):
-    
-    def do_OPTIONS(self):
-        """Handle CORS preflight"""
-        self.send_response(200)
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
-        self.end_headers()
-    
-    def do_POST(self):
-        """Handle POST request from webform or Telegram"""
-        content_length = int(self.headers['Content-Length'])
-        post_data = self.rfile.read(content_length)
-        
-        try:
-            data = json.loads(post_data.decode('utf-8'))
-            print(f"📨 Received data: {json.dumps(data, indent=2, ensure_ascii=False)[:500]}")
-            
-            # Send 200 OK immediately (don't make client wait)
-            self.send_response(200)
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.send_header('Content-Type', 'application/json')
-            self.end_headers()
-            self.wfile.write(json.dumps({"ok": True}).encode())
-            
-            # Now process the request
-            # Direct webform submission (has 'user', 'date', 'project' fields)
-            if "user" in data and "date" in data and "project" in data:
-                print("📝 Direct webform submission detected")
-                self.post_to_topic(data.get("user", "Unknown"), data)
-            
-            # Telegram web_app_data
-            elif "message" in data and "web_app_data" in data["message"]:
-                self.handle_web_app_data(data["message"])
-            
-            # Telegram command message
-            elif "message" in data and "text" in data["message"]:
-                text = data["message"]["text"]
-                if text.startswith("/submit_standup"):
-                    self.handle_command_submit(data["message"])
-            
-        except Exception as e:
-            print(f"❌ Error handling webhook: {e}")
-            import traceback
-            traceback.print_exc()
-            self.send_response(500)
-            self.end_headers()
-    
-    def handle_web_app_data(self, message):
-        """Process web app data"""
-        try:
-            web_app_data = message.get("web_app_data", {})
-            data_str = web_app_data.get("data", "{}")
-            report_data = json.loads(data_str)
-            
-            user_info = message.get("from", {})
-            user_name = f"{user_info.get('first_name', '')} {user_info.get('last_name', '')}".strip()
-            
-            print(f"📝 Report from: {user_name}")
-            print(f"   Data: {json.dumps(report_data, ensure_ascii=False)}")
-            
-            # Post to topic
-            self.post_to_topic(user_name, report_data)
-            
-        except Exception as e:
-            print(f"❌ Error processing web app data: {e}")
-    
-    def handle_command_submit(self, message):
-        """Handle /submit_standup command"""
-        try:
-            text = message.get("text", "")
-            # Extract JSON after command
-            json_start = text.find("{")
-            if json_start == -1:
-                return
-            
-            json_str = text[json_start:]
-            report_data = json.loads(json_str)
-            
-            user_info = message.get("from", {})
-            user_name = f"{user_info.get('first_name', '')} {user_info.get('last_name', '')}".strip()
-            
-            print(f"📝 Command report from: {user_name}")
-            print(f"   Data: {json.dumps(report_data, ensure_ascii=False)}")
-            
-            # Post to topic
-            self.post_to_topic(user_name, report_data)
-            
-        except Exception as e:
-            print(f"❌ Error processing command: {e}")
-    
-    def post_to_topic(self, user_name, data):
-        """Post report to topic Daily Meeting"""
+app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
+
+def post_to_telegram(user_name, data):
+    """Post report to Telegram topic (runs in background thread)"""
+    try:
         date_str = data.get('date', datetime.now().strftime('%Y-%m-%d'))
-        project = data.get('project', 'FS.XLite.Develop')
         yesterday = data.get('yesterday', '')
         today = data.get('today', '')
         ontrack = data.get('ontrack', 'unknown')
         blockers = data.get('blockers', 'Không có')
         
-        # Convert date format from YYYY-MM-DD to DD/MM/YYYY
+        # Convert date format
         try:
             date_obj = datetime.strptime(date_str, '%Y-%m-%d')
             date_display = date_obj.strftime('%d/%m/%Y')
@@ -127,7 +38,7 @@ class WebhookHandler(BaseHTTPRequestHandler):
         status_icon = "🟢" if ontrack == "yes" else "🔴"
         status_text = "Đúng tiến độ" if ontrack == "yes" else "Chậm tiến độ"
         
-        # Format message - compact and clean
+        # Build message
         message = f"""<b>👤 {user_name.upper()} - {date_display}</b>
 ——————————————————
 
@@ -142,7 +53,7 @@ class WebhookHandler(BaseHTTPRequestHandler):
 <b>🚧 Vướng mắc</b>
 {blockers}"""
         
-        # Send to topic
+        # Send to Telegram
         url = f"{API_URL}/sendMessage"
         payload = {
             "chat_id": CHAT_ID,
@@ -151,30 +62,50 @@ class WebhookHandler(BaseHTTPRequestHandler):
             "parse_mode": "HTML"
         }
         
-        try:
-            response = requests.post(url, json=payload, timeout=10)
-            result = response.json()
-            if result.get("ok"):
-                print(f"✅ Posted report to topic")
-            else:
-                print(f"❌ Failed to post: {result}")
-        except Exception as e:
-            print(f"❌ Error posting to topic: {e}")
-            import traceback
-            traceback.print_exc()
-    
-    def log_message(self, format, *args):
-        """Override to reduce noise"""
-        pass
+        response = requests.post(url, json=payload, timeout=10)
+        result = response.json()
+        
+        if result.get("ok"):
+            print(f"✅ Posted report to Telegram topic for {user_name}", flush=True)
+        else:
+            print(f"❌ Failed to post: {result}", flush=True)
+            
+    except Exception as e:
+        print(f"❌ Error posting to Telegram: {e}")
+        import traceback
+        traceback.print_exc()
 
-def run_server(port=None):
-    """Run webhook server"""
-    if port is None:
-        port = int(os.environ.get('PORT', 8443))
-    server = HTTPServer(('0.0.0.0', port), WebhookHandler)
-    print(f"🚀 Webhook server running on port {port}")
-    print("=" * 60)
-    server.serve_forever()
+@app.route('/', methods=['POST', 'OPTIONS'])
+def webhook():
+    """Handle webhook POST requests"""
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    try:
+        data = request.get_json()
+        print(f"📨 Received: {json.dumps(data, ensure_ascii=False)[:200]}...", flush=True)
+        
+        # Direct webform submission
+        if "user" in data and "date" in data and "project" in data:
+            print(f"📝 Webform from: {data.get('user')}", flush=True)
+            # Post to Telegram in background thread
+            threading.Thread(
+                target=post_to_telegram,
+                args=(data.get("user", "Unknown"), data),
+                daemon=True
+            ).start()
+        
+        # Return immediately
+        return jsonify({"ok": True}), 200
+        
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 if __name__ == "__main__":
-    run_server()
+    import os
+    port = int(os.environ.get('PORT', 8443))
+    print(f"🚀 Flask webhook server starting on port {port}")
+    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
