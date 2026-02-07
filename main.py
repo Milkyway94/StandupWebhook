@@ -34,6 +34,9 @@ class WebhookHandler(BaseHTTPRequestHandler):
             data = json.loads(post_data.decode('utf-8'))
             print(f"📝 Received submission: {json.dumps(data, ensure_ascii=False)}")
             
+            # Save to Google Sheets
+            self.save_to_sheets(data)
+            
             # Post to Telegram topic
             success = self.post_to_topic(data)
             
@@ -51,6 +54,18 @@ class WebhookHandler(BaseHTTPRequestHandler):
             self.send_response(500)
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
+    
+    def save_to_sheets(self, data):
+        """Save to Google Sheets"""
+        try:
+            sheets_url = "https://script.google.com/macros/s/AKfycbwNXKBxViab5KUkNx8q69NCF2_v7upQAbAr7MyKFM2E351tA70EYauMJsiAcko0yHSU/exec"
+            response = requests.post(sheets_url, json=data, timeout=10)
+            if response.status_code == 200:
+                print(f"✅ Saved to Google Sheets")
+            else:
+                print(f"⚠️  Sheets save failed: {response.status_code}")
+        except Exception as e:
+            print(f"⚠️  Sheets error: {e}")
     
     def post_to_topic(self, data):
         """Post report to Telegram topic"""
