@@ -82,24 +82,24 @@ class WebhookHandler(BaseHTTPRequestHandler):
             status_icon = "✅" if ontrack == "yes" else "⚠️"
             status_text = "Đúng tiến độ" if ontrack == "yes" else "Chậm tiến độ"
             
-            message = f"""📊 **Daily Standup Report**
+            message = f"""<b>📊 DAILY STANDUP REPORT</b>
 
-👤 **Người báo cáo:** {user_name}
-📅 **Ngày:** {date}
-📁 **Dự án:** {project}
+<b>👤 Người báo cáo:</b> {user_name}
+<b>📅 Ngày:</b> {date}
+<b>📁 Dự án:</b> {project}
 
-**1️⃣ Hôm trước làm gì?**
+<b>1️⃣ Hôm trước làm gì?</b>
 {yesterday}
 
-**2️⃣ Hôm nay làm gì?**
+<b>2️⃣ Hôm nay làm gì?</b>
 {today}
 
-**3️⃣ Tiến độ:** {status_icon} {status_text}
+<b>3️⃣ Tiến độ:</b> {status_icon} {status_text}
 
-**4️⃣ Vướng mắc:**
+<b>4️⃣ Vướng mắc:</b>
 {blockers}
 
----
+——————————————————
 ✅ Đã gửi lúc {datetime.now().strftime('%H:%M:%S')}"""
             
             # Send to topic
@@ -108,7 +108,7 @@ class WebhookHandler(BaseHTTPRequestHandler):
                 "chat_id": CHAT_ID,
                 "message_thread_id": THREAD_ID,
                 "text": message,
-                "parse_mode": "Markdown"
+                "parse_mode": "HTML"
             }
             
             response = requests.post(url, json=payload, timeout=10)
