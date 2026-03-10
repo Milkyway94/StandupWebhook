@@ -67,16 +67,25 @@ class WebhookHandler(BaseHTTPRequestHandler):
         except Exception as e:
             print(f"⚠️  Sheets error: {e}")
     
+    def escape_html(self, text):
+        """Escape HTML special characters"""
+        if not text:
+            return text
+        return (text
+            .replace('&', '&amp;')
+            .replace('<', '&lt;')
+            .replace('>', '&gt;'))
+    
     def post_to_topic(self, data):
         """Post report to Telegram topic"""
         try:
-            user_name = data.get('user', 'Unknown')
+            user_name = self.escape_html(data.get('user', 'Unknown'))
             date = data.get('date', datetime.now().strftime('%Y-%m-%d'))
-            project = data.get('project', 'FS.XLite.Develop')
-            yesterday = data.get('yesterday', '')
-            today = data.get('today', '')
+            project = self.escape_html(data.get('project', 'FS.XLite.Develop'))
+            yesterday = self.escape_html(data.get('yesterday', ''))
+            today = self.escape_html(data.get('today', ''))
             ontrack = data.get('ontrack', 'unknown')
-            blockers = data.get('blockers', 'Không có')
+            blockers = self.escape_html(data.get('blockers', 'Không có'))
             
             # Format status
             status_icon = "✅" if ontrack == "yes" else "⚠️"
