@@ -10,9 +10,11 @@ import requests
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from datetime import datetime
 
-BOT_TOKEN = "8305092853:AAFJEMce0TPjU2NTFcmLqbnlGJaXC-ZeU1Q"
-CHAT_ID = "-1003773551774"
-THREAD_ID = 7
+# Configuration from environment variables with defaults
+BOT_TOKEN = os.environ.get('BOT_TOKEN', '8305092853:AAFJEMce0TPjU2NTFcmLqbnlGJaXC-ZeU1Q')
+CHAT_ID = os.environ.get('CHAT_ID', '-1003773551774')
+THREAD_ID = int(os.environ.get('THREAD_ID', '7'))
+SHEETS_URL = os.environ.get('SHEETS_URL', 'https://script.google.com/macros/s/AKfycbwNXKBxViab5KUkNx8q69NCF2_v7upQAbAr7MyKFM2E351tA70EYauMJsiAcko0yHSU/exec')
 API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
 class WebhookHandler(BaseHTTPRequestHandler):
@@ -58,8 +60,7 @@ class WebhookHandler(BaseHTTPRequestHandler):
     def save_to_sheets(self, data):
         """Save to Google Sheets"""
         try:
-            sheets_url = "https://script.google.com/macros/s/AKfycbwNXKBxViab5KUkNx8q69NCF2_v7upQAbAr7MyKFM2E351tA70EYauMJsiAcko0yHSU/exec"
-            response = requests.post(sheets_url, json=data, timeout=10)
+            response = requests.post(SHEETS_URL, json=data, timeout=10)
             if response.status_code == 200:
                 print(f"✅ Saved to Google Sheets")
             else:

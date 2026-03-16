@@ -10,6 +10,14 @@ services:
       - "8080:8080"
     environment:
       - PORT=8080
+      # Uncomment and set these to override defaults
+      # - BOT_TOKEN=your_bot_token
+      # - CHAT_ID=your_chat_id
+      # - THREAD_ID=your_thread_id
+      # - SHEETS_URL=your_sheets_url
+    # Or use .env file
+    # env_file:
+    #   - .env
     healthcheck:
       test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8080', timeout=5)"]
       interval: 30s
