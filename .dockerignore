@@ -1,0 +1,36 @@
+# Git files
+.git
+.gitignore
+.github
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Documentation
+README.md
+*.md
+
+# Deployment configs (not needed in image)
+vercel.json
+render.yaml
+
+# Local environment
+.env
+.env.local
+venv
+env
