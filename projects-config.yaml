@@ -1,0 +1,24 @@
+# Projects configuration for smart routing
+# Format: project_id → Telegram config
+
+projects:
+  xlite:
+    name: "FS.XLite.Develop"
+    bot_token: "8305092853:AAFJEMce0TPjU2NTFcmLqbnlGJaXC-ZeU1Q"
+    chat_id: "-1003773551774"
+    thread_id: 7
+    sheets_url: "https://script.google.com/macros/s/AKfycbwNXKBxViab5KUkNx8q69NCF2_v7upQAbAr7MyKFM2E351tA70EYauMJsiAcko0yHSU/exec"
+
+  apecfinance:
+    name: "ApecFinance"
+    bot_token: "8305092853:AAFJEMce0TPjU2NTFcmLqbnlGJaXC-ZeU1Q"
+    chat_id: "-1003853347044"
+    thread_id: 2
+    sheets_url: ""
+
+  ai-development:
+    name: "FS.AI.Development"
+    bot_token: "8305092853:AAFJEMce0TPjU2NTFcmLqbnlGJaXC-ZeU1Q"
+    chat_id: "-1003873043927"
+    thread_id: 12
+    sheets_url: ""
