@@ -10,6 +10,7 @@ import requests
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 # Project routing configuration
 PROJECTS = {
@@ -138,6 +139,10 @@ class SmartWebhookHandler(BaseHTTPRequestHandler):
             status_icon = "✅" if ontrack == "yes" else "⚠️"
             status_text = "Đúng tiến độ" if ontrack == "yes" else "Chậm tiến độ"
             
+            # Get Vietnam timezone (GMT+7)
+            vietnam_tz = ZoneInfo('Asia/Bangkok')  # or 'Asia/Ho_Chi_Minh'
+            now_vietnam = datetime.now(vietnam_tz)
+            
             message = f"""<b>📊 DAILY STANDUP REPORT</b>
 
 <b>👤 Người báo cáo:</b> {user_name}
@@ -156,7 +161,7 @@ class SmartWebhookHandler(BaseHTTPRequestHandler):
 {blockers}
 
 ——————————————————
-✅ Đã gửi lúc {datetime.now().strftime('%H:%M:%S')}"""
+✅ Đã gửi lúc {now_vietnam.strftime('%H:%M:%S')} (GMT+7)"""
             
             # Send to Telegram
             bot_token = project_config['bot_token']
