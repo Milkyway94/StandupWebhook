@@ -7,6 +7,7 @@ Daily Standup Webhook Server - Smart Routing
 import os
 import json
 import requests
+import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from datetime import datetime
 
@@ -43,7 +44,7 @@ class SmartWebhookHandler(BaseHTTPRequestHandler):
         self.end_headers()
     
     def do_POST(self):
-        """Handle POST request from form"""
+        """Handle POST request from form - ASYNC for fast response"""
         content_length = int(self.headers.get('Content-Length', 0))
         post_data = self.rfile.read(content_length)
         
@@ -52,7 +53,6 @@ class SmartWebhookHandler(BaseHTTPRequestHandler):
             project = data.get('project', 'xlite').lower()
             
             print(f"📝 Received submission for project: {project}")
-            print(f"   Data: {json.dumps(data, ensure_ascii=False)[:200]}")
             
             # Get project config
             project_config = PROJECTS.get(project)
@@ -61,25 +61,33 @@ class SmartWebhookHandler(BaseHTTPRequestHandler):
                 self.send_error_response(f"Unknown project: {project}")
                 return
             
-            # Save to Google Sheets (if configured)
-            if project_config['sheets_url']:
-                self.save_to_sheets(data, project_config['sheets_url'])
-            
-            # Post to Telegram
-            success = self.post_to_telegram(data, project_config)
-            
-            # Send response
-            self.send_response(200 if success else 500)
+            # ⚡ RESPOND IMMEDIATELY (async processing)
+            self.send_response(202)  # 202 Accepted
             self.send_header('Content-Type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             
             response = {
-                "ok": success,
+                "ok": True,
                 "project": project,
-                "message": "Posted to Telegram" if success else "Failed"
+                "message": "Accepted - processing in background"
             }
             self.wfile.write(json.dumps(response).encode())
+            
+            # Process in background thread (non-blocking)
+            def process_async():
+                try:
+                    # Save to Google Sheets (if configured)
+                    if project_config['sheets_url']:
+                        self.save_to_sheets(data, project_config['sheets_url'])
+                    
+                    # Post to Telegram
+                    self.post_to_telegram(data, project_config)
+                except Exception as e:
+                    print(f"❌ Background error: {e}")
+            
+            # Spawn background thread
+            threading.Thread(target=process_async, daemon=True).start()
             
         except Exception as e:
             print(f"❌ Error: {e}")
@@ -96,13 +104,15 @@ class SmartWebhookHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps({"ok": False, "error": message}).encode())
     
     def save_to_sheets(self, data, sheets_url):
-        """Save to Google Sheets"""
+        """Save to Google Sheets (with short timeout)"""
         try:
-            response = requests.post(sheets_url, json=data, timeout=10)
+            response = requests.post(sheets_url, json=data, timeout=3)  # Reduced to 3s
             if response.status_code == 200:
                 print(f"✅ Saved to Google Sheets")
             else:
                 print(f"⚠️  Sheets save failed: {response.status_code}")
+        except requests.Timeout:
+            print(f"⚠️  Sheets timeout (ignored)")
         except Exception as e:
             print(f"⚠️  Sheets error: {e}")
     
@@ -163,7 +173,7 @@ class SmartWebhookHandler(BaseHTTPRequestHandler):
                 "parse_mode": "HTML"
             }
             
-            response = requests.post(url, json=payload, timeout=10)
+            response = requests.post(url, json=payload, timeout=5)  # Reduced to 5s
             result = response.json()
             
             if result.get("ok"):
