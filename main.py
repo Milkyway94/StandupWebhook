@@ -36,11 +36,9 @@ PROJECTS = {
 class SmartWebhookHandler(BaseHTTPRequestHandler):
     
     def do_OPTIONS(self):
-        """Handle CORS preflight"""
+        """Handle CORS preflight - nginx handles CORS headers"""
         self.send_response(200)
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        # Removed CORS headers - nginx will add them
         self.end_headers()
     
     def do_POST(self):
@@ -64,7 +62,7 @@ class SmartWebhookHandler(BaseHTTPRequestHandler):
             # ⚡ RESPOND IMMEDIATELY (async processing)
             self.send_response(202)  # 202 Accepted
             self.send_header('Content-Type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
+            # CORS handled by nginx
             self.end_headers()
             
             response = {
@@ -99,7 +97,7 @@ class SmartWebhookHandler(BaseHTTPRequestHandler):
         """Send error response"""
         self.send_response(400)
         self.send_header('Content-Type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
+        # CORS handled by nginx
         self.end_headers()
         self.wfile.write(json.dumps({"ok": False, "error": message}).encode())
     
