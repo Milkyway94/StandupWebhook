@@ -31,6 +31,12 @@ PROJECTS = {
         'chat_id': '-1003873043927',
         'thread_id': 12,
         'sheets_url': ''
+    },
+    'crs-tap': {
+        'bot_token': os.environ.get('BOT_TOKEN', '8305092853:AAFJEMce0TPjU2NTFcmLqbnlGJaXC-ZeU1Q'),
+        'chat_id': '-1004323409996',
+        'thread_id': 2,
+        'sheets_url': 'https://script.google.com/macros/s/AKfycbwNXKBxViab5KUkNx8q69NCF2_v7upQAbAr7MyKFM2E351tA70EYauMJsiAcko0yHSU/exec'
     }
 }
 
